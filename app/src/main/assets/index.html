@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Al-Quran Mushaf Madinah</title>
+<style>
+:root{--bg:#d7e9f7;--blue:#8fc0e4;--blue2:#4f8fbf;--deep:#1b4a75;--paper:#fffef9;--ink:#10202f}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:var(--bg);color:var(--deep);font-family:system-ui,Roboto,sans-serif;overflow:hidden}
+#app{display:flex;height:100vh}
+.side{width:11vw;min-width:90px;background:linear-gradient(#d3e8f8,#9cc8e8);text-align:center;padding:5vh 6px;font-size:1.8vh;line-height:1.5;border-right:3px double var(--blue2)}
+#sr{border-right:0;border-left:3px double var(--blue2)}
+.side .pn{display:block;color:var(--deep);font-size:4.6vh;margin:0 0 3vh}
+.side .pn small{display:block;font-size:2vh;font-weight:600}
+.side p{margin-bottom:2vh;font-weight:600}
+.pane{flex:1;background:var(--paper);color:var(--ink);padding:2.6vh 1.8vw;display:flex;flex-direction:column;justify-content:space-between;direction:ltr;min-width:0;box-shadow:inset 0 0 0 .5vh var(--blue),inset 0 0 0 .8vh var(--paper),inset 0 0 0 1.05vh var(--blue2)}
+.ln{display:flex;justify-content:space-between;direction:rtl;white-space:nowrap;gap:.2em;flex:1;align-items:center}
+.ln.c{justify-content:center}
+.ln.e{visibility:hidden}
+.ban{flex:1;display:flex;align-items:center;justify-content:center;background:linear-gradient(#c6e1f5,#8fc0e4);border-radius:.8vh;margin:.4vh 0;border:3px double var(--deep);box-shadow:inset 0 0 0 .4vh #e8f4fc}
+.ban b{background:var(--paper);color:var(--deep);border:2px solid var(--deep);border-radius:5vh;padding:.2vh 4vw;font:700 3.2vh "Amiri Quran","Noto Naskh Arabic","Traditional Arabic",serif}
+.bas{flex:1;display:flex;align-items:center;justify-content:center;font:3.4vh "Amiri Quran","Noto Naskh Arabic","Traditional Arabic",serif;direction:rtl}
+#msg{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#d7e9f7ee;font-size:3vh;z-index:5;text-align:center;padding:5vw}
+#mb{position:fixed;bottom:1.2vh;left:50%;transform:translateX(-50%);z-index:4;background:var(--paper);color:var(--deep);border:2px solid var(--deep);border-radius:3vh;padding:.8vh 2vw;font-size:2vh}
+#panel{position:fixed;inset:4vh 8vw;background:#f1f8fd;color:var(--deep);border:3px double var(--deep);border-radius:2vh;z-index:6;display:flex;flex-direction:column;padding:2vh 2vw}
+#panel[hidden]{display:none}
+#tabs{display:flex;gap:1vw;margin-bottom:2vh}
+#panel button{background:#d4e8f7;color:var(--deep);border:2px solid transparent;border-radius:1.2vh;font-size:2.4vh;padding:1vh 1vw;cursor:pointer}
+#panel button:focus,#mb:focus{outline:none;border-color:var(--deep);background:var(--blue);box-shadow:0 0 0 .5vh #1b4a7555}
+#panel button.on{background:var(--blue2);color:#fff}
+.lst{overflow:auto;flex:1;display:grid;gap:1vh;align-content:start;padding:.6vh}
+#gp{grid-template-columns:repeat(auto-fill,minmax(7vw,1fr))}
+#gs{grid-template-columns:repeat(auto-fill,minmax(22vw,1fr))}
+#gj{grid-template-columns:repeat(auto-fill,minmax(16vw,1fr))}
+#gs button{display:flex;justify-content:space-between;gap:1vw;text-align:left}
+.lst[hidden]{display:none}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&display=swap" rel="stylesheet">
+</head>
+<body>
+<div id="app"><div class="side" id="sl"></div><div class="pane" id="pl"></div><div class="pane" id="pr"></div><div class="side" id="sr"></div></div>
+<button id="mb">☰ Daftar halaman</button>
+<div id="msg"></div>
+<div id="panel" hidden>
+  <div id="tabs"></div>
+  <div class="lst" id="gp"></div><div class="lst" id="gs" hidden></div><div class="lst" id="gj" hidden></div>
+</div>
+<script>
+const $=s=>document.querySelector(s), API='https://api.quran.com/api/v4';
+const JUZ=[1,22,42,62,82,102,121,142,162,182,201,222,242,262,282,302,322,342,362,382,402,422,442,462,482,502,522,542,562,582];
+let chap=[],cache={},cur=1,busy=0;
+try{cur=+localStorage.getItem('mp')||1}catch(e){}
+
+async function J(a,b){try{const r=await fetch(a);if(r.ok)return await r.json()}catch(e){}const r=await fetch(b);if(!r.ok)throw 0;return r.json()}
+async function loadPage(p){
+  if(cache[p])return cache[p];
+  const v=(await J(`data/p${p}.json`,`${API}/verses/by_page/${p}?mushaf=2&words=true&word_fields=code_v1,line_number&per_page=50`)).verses;
+  let f=new FontFace('p'+p,`url(fonts/p${p}.woff2)`);
+  try{await f.load()}catch(e){f=new FontFace('p'+p,`url(https://verses.quran.com/fonts/quran/hafs/v1/woff2/p${p}.woff2)`);await f.load()}
+  document.fonts.add(f);return cache[p]=v;
+}
+const sid=v=>+v.verse_key.split(':')[0];
+
+function build(p,V){
+  const n=p<=2?8:15,L=Array.from({length:n+1},()=>({w:[],s:0}));
+  V.forEach(v=>v.words.forEach(w=>{
+    const l=L[w.line_number];if(!l)return;
+    l.w.push(w.code_v1);
+    if(v.verse_number==1&&w.position==1)l.s=sid(v);
+  }));
+  let h='';
+  for(let i=1;i<=n;i++){
+    if(L[i].w.length){h+=`<div class="ln" style="font-family:p${p}">${L[i].w.map(c=>`<span>${c}</span>`).join('')}</div>`;continue}
+    let j=i+1;while(j<=n&&!L[j].w.length)j++;
+    const s=j<=n?L[j].s:0,k=j-i,off=(s==1||s==9)?1:2;
+    if(s&&k==off)h+=`<div class="ban"><b>سُورَةُ ${chap[s-1].name_arabic}</b></div>`;
+    else if(s&&k==1&&off==2)h+=`<div class="bas">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>`;
+    else h+=`<div class="ln e"></div>`;
+  }
+  return h;
+}
+function fit(el){
+  const W=el.clientWidth-el.clientHeight*0+0, cw=el.clientWidth-parseFloat(getComputedStyle(el).paddingLeft)*2;
+  const rows=el.children.length;
+  let fs=el.clientHeight/rows*.62;
+  el.style.fontSize=fs+'px';
+  const lines=[...el.querySelectorAll('.ln:not(.e)')];
+  const sum=l=>[...l.children].reduce((a,c)=>a+c.offsetWidth,0);
+  let mx=Math.max(1,...lines.map(sum));
+  if(mx>cw*.985){fs*=cw*.985/mx;el.style.fontSize=fs+'px'}
+  lines.forEach(l=>{if(sum(l)<cw*.78)l.classList.add('c')});
+}
+function side(p,V){
+  if(!V)return '';
+  const ss=[...new Set(V.map(sid))],f=V[0];
+  return `<b class="pn"><small>Halaman</small>${p}</b>`+ss.map(s=>`<p>${s}. ${chap[s-1].name_simple}</p>`).join('')+`<p>Juz ${f.juz_number}</p><p>Hizb ${f.hizb_number}</p>`;
+}
+async function show(){
+  const r=cur,l=cur+1<=604?cur+1:0,id=++busy;
+  $('#msg').style.display='flex';$('#msg').textContent='Memuat halaman '+r+'…';
+  try{
+    const [a,b]=await Promise.all([loadPage(r),l?loadPage(l):null]);
+    if(id!==busy)return;
+    $('#pr').innerHTML=build(r,a);$('#pl').innerHTML=l?build(l,b):'';
+    $('#sr').innerHTML=side(r,a);$('#sl').innerHTML=side(l,b);
+    $('#msg').style.display='none';
+    requestAnimationFrame(()=>{fit($('#pr'));if(l)fit($('#pl'))});
+    try{localStorage.setItem('mp',cur)}catch(e){}
+    [cur+2,cur+3,cur-2,cur-1].forEach(q=>{if(q>0&&q<605)loadPage(q).catch(()=>{})});
+  }catch(e){
+    $('#msg').innerHTML='Gagal memuat. Pastikan TV terhubung internet.<br><br><button id="rt" style="font-size:3vh;padding:1vh 3vw">Coba lagi</button>';
+    $('#rt').onclick=show;$('#rt').focus();
+  }
+}
+function go(p){p=Math.max(1,Math.min(603,p));if(p%2==0)p--;if(p!==cur||!$('#pr').innerHTML){cur=p;show()}}
+
+function openP(){
+  $('#panel').hidden=false;
+  const b=$('#gp').children[cur-1];b.focus();b.scrollIntoView({block:'center'});
+}
+function closeP(){$('#panel').hidden=true;$('#mb').focus()}
+function tab(i){
+  ['gp','gs','gj'].forEach((id,k)=>{$('#'+id).hidden=k!==i;$('#tabs').children[k].classList.toggle('on',k===i)});
+}
+function init(){
+  $('#tabs').innerHTML=['Halaman','Surah','Juz'].map(t=>`<button>${t}</button>`).join('');
+  [...$('#tabs').children].forEach((b,i)=>{b.onclick=()=>tab(i);b.onfocus=()=>tab(i)});
+  let h='';for(let p=1;p<=604;p++)h+=`<button data-p="${p}">${p}</button>`;$('#gp').innerHTML=h;
+  $('#gs').innerHTML=chap.map(c=>`<button data-p="${c.pages[0]}"><span>${c.id}. ${c.name_simple}</span><span>${c.name_arabic}</span></button>`).join('');
+  $('#gj').innerHTML=JUZ.map((p,i)=>`<button data-p="${p}">Juz ${i+1} <small>· hal ${p}</small></button>`).join('');
+  document.querySelectorAll('.lst button').forEach(b=>b.onclick=()=>{closeP();go(+b.dataset.p)});
+  tab(0);
+}
+function nav(d){
+  const a=document.activeElement,ra=a.getBoundingClientRect();
+  const els=[...document.querySelectorAll('#panel button')].filter(e=>e.offsetParent&&e!==a);
+  let best=null,bd=1e9;
+  for(const e of els){
+    const r=e.getBoundingClientRect(),dx=r.left+r.width/2-ra.left-ra.width/2,dy=r.top+r.height/2-ra.top-ra.height/2;
+    const hz=d=='L'||d=='R',ok=d=='L'?dx<-2&&Math.abs(dy)<ra.height/2:d=='R'?dx>2&&Math.abs(dy)<ra.height/2:d=='U'?dy<-2:dy>2;
+    if(!ok)continue;
+    const s=hz?Math.abs(dx)+Math.abs(dy)*3:Math.abs(dy)+Math.abs(dx)*2;
+    if(s<bd){bd=s;best=e}
+  }
+  if(best){best.focus();best.scrollIntoView({block:'nearest'})}
+}
+const KM={ArrowLeft:'L',ArrowRight:'R',ArrowUp:'U',ArrowDown:'D'};
+document.addEventListener('keydown',e=>{
+  const k=e.key,open=!$('#panel').hidden;
+  if(open){
+    if(k=='Escape'||k=='Backspace'||k=='GoBack'||k=='ContextMenu'){closeP();e.preventDefault()}
+    else if(KM[k]){nav(KM[k]);e.preventDefault()}
+    return;
+  }
+  if(k=='ArrowLeft'||k=='PageDown'){go(cur+2);e.preventDefault()}
+  else if(k=='ArrowRight'||k=='PageUp'){go(cur-2);e.preventDefault()}
+  else if(k=='Enter'||k=='ContextMenu'||k=='m'){openP();e.preventDefault()}
+});
+function onBack(){if(!$('#panel').hidden){closeP();return true}return false}
+$('#mb').onclick=openP;
+addEventListener('resize',()=>{if(cache[cur]){fit($('#pr'));if($('#pl').children.length)fit($('#pl'))}});
+(async()=>{
+  try{
+    chap=(await J('data/chapters.json',API+'/chapters?language=id')).chapters;
+    init();go(cur);
+  }catch(e){
+    $('#msg').style.display='flex';$('#msg').textContent='Tidak bisa terhubung ke internet. Sambungkan TV lalu muat ulang.';
+  }
+})();
+</script>
+</body>
+</html>
