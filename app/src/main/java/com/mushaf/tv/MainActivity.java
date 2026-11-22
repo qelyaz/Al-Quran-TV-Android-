@@ -13,6 +13,7 @@ public class MainActivity extends Activity {
     WebSettings s = w.getSettings();
     s.setJavaScriptEnabled(true);
     s.setDomStorageEnabled(true);
+    s.setMediaPlaybackRequiresUserGesture(false);
     final WebViewAssetLoader l = new WebViewAssetLoader.Builder()
       .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
     w.setWebViewClient(new WebViewClient() {
