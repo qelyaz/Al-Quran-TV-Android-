@@ -14,15 +14,16 @@ html,body{height:100%;background:var(--bg);color:var(--deep);font-family:system-
 .side .pn{display:block;color:var(--deep);font-size:4.6vh;margin:0 0 3vh}
 .side .pn small{display:block;font-size:2vh;font-weight:600}
 .side p{margin-bottom:2vh;font-weight:600}
-.pane{flex:1;background:var(--paper);color:var(--ink);padding:2.6vh 1.8vw;display:flex;flex-direction:column;justify-content:space-between;direction:ltr;min-width:0;box-shadow:inset 0 0 0 .5vh var(--blue),inset 0 0 0 .8vh var(--paper),inset 0 0 0 1.05vh var(--blue2)}
-.ln{display:flex;justify-content:space-between;direction:rtl;white-space:nowrap;gap:.2em;flex:1;align-items:center}
-.ln.c{justify-content:center}
+.pane{flex:1;height:100vh;background:var(--paper);color:var(--ink);padding:3.2vh 2vw;display:flex;flex-direction:column;direction:ltr;min-width:0;overflow:hidden;box-shadow:inset 0 0 0 .5vh var(--blue),inset 0 0 0 .8vh var(--paper),inset 0 0 0 1.05vh var(--blue2)}
+.ln{flex:1 1 0;min-height:0;display:flex;justify-content:space-between;direction:rtl;white-space:nowrap;align-items:center;line-height:1;gap:0}
+.ln span{padding:0 .07em}
+.ln.c{justify-content:center;gap:.3em}
 .ln.e{visibility:hidden}
-.ban{flex:1;display:flex;align-items:center;justify-content:center;background:linear-gradient(#c6e1f5,#8fc0e4);border-radius:.8vh;margin:.4vh 0;border:3px double var(--deep);box-shadow:inset 0 0 0 .4vh #e8f4fc}
+.ban{flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(#c6e1f5,#8fc0e4);border-radius:.8vh;margin:.3vh 0;border:3px double var(--deep);box-shadow:inset 0 0 0 .4vh #e8f4fc}
 .ban b{background:var(--paper);color:var(--deep);border:2px solid var(--deep);border-radius:5vh;padding:.2vh 4vw;font:700 3.2vh "Amiri Quran","Noto Naskh Arabic","Traditional Arabic",serif}
-.bas{flex:1;display:flex;align-items:center;justify-content:center;font:3.4vh "Amiri Quran","Noto Naskh Arabic","Traditional Arabic",serif;direction:rtl}
+.bas{flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center;font:3.2vh "Amiri Quran","Noto Naskh Arabic","Traditional Arabic",serif;direction:rtl}
 #msg{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#d7e9f7ee;font-size:3vh;z-index:5;text-align:center;padding:5vw}
-#mb{position:fixed;bottom:1.2vh;left:50%;transform:translateX(-50%);z-index:4;background:var(--paper);color:var(--deep);border:2px solid var(--deep);border-radius:3vh;padding:.8vh 2vw;font-size:2vh}
+#mb{position:fixed;bottom:1.5vh;left:.6vw;width:10vw;z-index:4;background:var(--paper);color:var(--deep);border:2px solid var(--deep);border-radius:3vh;padding:.8vh .4vw;font-size:1.8vh}
 #panel{position:fixed;inset:4vh 8vw;background:#f1f8fd;color:var(--deep);border:3px double var(--deep);border-radius:2vh;z-index:6;display:flex;flex-direction:column;padding:2vh 2vw}
 #panel[hidden]{display:none}
 #tabs{display:flex;gap:1vw;margin-bottom:2vh}
@@ -81,15 +82,15 @@ function build(p,V){
   return h;
 }
 function fit(el){
-  const W=el.clientWidth-el.clientHeight*0+0, cw=el.clientWidth-parseFloat(getComputedStyle(el).paddingLeft)*2;
-  const rows=el.children.length;
-  let fs=el.clientHeight/rows*.62;
+  const cs=getComputedStyle(el),pv=parseFloat(cs.paddingTop)*2,ph=parseFloat(cs.paddingLeft)*2;
+  const cw=(el.clientWidth-ph)*.96,rows=el.children.length;
+  let fs=(el.clientHeight-pv)/rows*.56;
   el.style.fontSize=fs+'px';
   const lines=[...el.querySelectorAll('.ln:not(.e)')];
   const sum=l=>[...l.children].reduce((a,c)=>a+c.offsetWidth,0);
-  let mx=Math.max(1,...lines.map(sum));
-  if(mx>cw*.985){fs*=cw*.985/mx;el.style.fontSize=fs+'px'}
-  lines.forEach(l=>{if(sum(l)<cw*.78)l.classList.add('c')});
+  const mx=Math.max(1,...lines.map(sum));
+  if(mx>cw){fs*=cw/mx;el.style.fontSize=fs+'px'}
+  lines.forEach(l=>l.classList.toggle('c',sum(l)<cw*.8));
 }
 function side(p,V){
   if(!V)return '';
@@ -105,7 +106,7 @@ async function show(){
     $('#pr').innerHTML=build(r,a);$('#pl').innerHTML=l?build(l,b):'';
     $('#sr').innerHTML=side(r,a);$('#sl').innerHTML=side(l,b);
     $('#msg').style.display='none';
-    requestAnimationFrame(()=>{fit($('#pr'));if(l)fit($('#pl'))});
+    const F=()=>{fit($('#pr'));if(l)fit($('#pl'))};requestAnimationFrame(F);document.fonts.ready.then(F);
     try{localStorage.setItem('mp',cur)}catch(e){}
     [cur+2,cur+3,cur-2,cur-1].forEach(q=>{if(q>0&&q<605)loadPage(q).catch(()=>{})});
   }catch(e){
