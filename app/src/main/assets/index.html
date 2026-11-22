@@ -36,6 +36,13 @@ html,body{height:100%;background:var(--bg);color:var(--deep);font-family:system-
 #gj{grid-template-columns:repeat(auto-fill,minmax(16vw,1fr))}
 #gs button{display:flex;justify-content:space-between;gap:1vw;text-align:left}
 .lst[hidden]{display:none}
+.hl{background:#bfe0f7;border-radius:.25em}
+#np{position:fixed;bottom:7vh;left:.6vw;width:10vw;z-index:4;background:var(--paper);color:var(--deep);border:2px solid var(--deep);border-radius:1.2vh;padding:.8vh .3vw;font-size:1.6vh;line-height:1.4;text-align:center;display:none}
+#opt{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:40vw;min-width:300px;background:#f1f8fd;color:var(--deep);border:3px double var(--deep);border-radius:2vh;z-index:7;padding:2.4vh 2vw}
+#opt[hidden]{display:none}
+#opt h3{font-size:2.6vh;margin-bottom:1.6vh;text-align:center}
+#opt button{display:block;width:100%;margin-bottom:1vh;background:#d4e8f7;color:var(--deep);border:2px solid transparent;border-radius:1.2vh;font-size:2.4vh;padding:1.2vh 1vw;cursor:pointer;text-align:left}
+#opt button:focus{outline:none;border-color:var(--deep);background:var(--blue);box-shadow:0 0 0 .5vh #1b4a7555}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&display=swap" rel="stylesheet">
 </head>
@@ -43,6 +50,8 @@ html,body{height:100%;background:var(--bg);color:var(--deep);font-family:system-
 <div id="app"><div class="side" id="sl"></div><div class="pane" id="pl"></div><div class="pane" id="pr"></div><div class="side" id="sr"></div></div>
 <button id="mb">☰ Daftar halaman</button>
 <div id="msg"></div>
+<div id="np"></div>
+<div id="opt" hidden><h3 id="ot"></h3><button id="bp"></button><button id="bq"></button><button id="ba"></button><button id="bc">Tutup</button></div>
 <div id="panel" hidden>
   <div id="tabs"></div>
   <div class="lst" id="gp"></div><div class="lst" id="gs" hidden></div><div class="lst" id="gj" hidden></div>
@@ -67,12 +76,12 @@ function build(p,V){
   const n=p<=2?8:15,L=Array.from({length:n+1},()=>({w:[],s:0}));
   V.forEach(v=>v.words.forEach(w=>{
     const l=L[w.line_number];if(!l)return;
-    l.w.push(w.code_v1);
+    l.w.push({c:w.code_v1,v:v.verse_key});
     if(v.verse_number==1&&w.position==1)l.s=sid(v);
   }));
   let h='';
   for(let i=1;i<=n;i++){
-    if(L[i].w.length){h+=`<div class="ln" style="font-family:p${p}">${L[i].w.map(c=>`<span>${c}</span>`).join('')}</div>`;continue}
+    if(L[i].w.length){h+=`<div class="ln" style="font-family:p${p}">${L[i].w.map(x=>`<span data-v="${x.v}">${x.c}</span>`).join('')}</div>`;continue}
     let j=i+1;while(j<=n&&!L[j].w.length)j++;
     const s=j<=n?L[j].s:0,k=j-i,off=(s==1||s==9)?1:2;
     if(s&&k==off)h+=`<div class="ban"><b>سُورَةُ ${chap[s-1].name_arabic}</b></div>`;
@@ -104,7 +113,7 @@ async function show(){
     const [a,b]=await Promise.all([loadPage(r),l?loadPage(l):null]);
     if(id!==busy)return;
     $('#pr').innerHTML=build(r,a);$('#pl').innerHTML=l?build(l,b):'';
-    $('#sr').innerHTML=side(r,a);$('#sl').innerHTML=side(l,b);
+    $('#sr').innerHTML=side(r,a);$('#sl').innerHTML=side(l,b);hl();
     $('#msg').style.display='none';
     const F=()=>{fit($('#pr'));if(l)fit($('#pl'))};requestAnimationFrame(F);document.fonts.ready.then(F);
     try{localStorage.setItem('mp',cur)}catch(e){}
@@ -135,7 +144,7 @@ function init(){
 }
 function nav(d){
   const a=document.activeElement,ra=a.getBoundingClientRect();
-  const els=[...document.querySelectorAll('#panel button')].filter(e=>e.offsetParent&&e!==a);
+  const els=[...document.querySelectorAll('#panel button,#opt button')].filter(e=>e.offsetParent&&e!==a);
   let best=null,bd=1e9;
   for(const e of els){
     const r=e.getBoundingClientRect(),dx=r.left+r.width/2-ra.left-ra.width/2,dy=r.top+r.height/2-ra.top-ra.height/2;
@@ -148,17 +157,63 @@ function nav(d){
 }
 const KM={ArrowLeft:'L',ArrowRight:'R',ArrowUp:'U',ArrowDown:'D'};
 document.addEventListener('keydown',e=>{
-  const k=e.key,open=!$('#panel').hidden;
-  if(open){
-    if(k=='Escape'||k=='Backspace'||k=='GoBack'||k=='ContextMenu'){closeP();e.preventDefault()}
+  const k=e.key,pO=!$('#panel').hidden,oO=!$('#opt').hidden;
+  if(pO||oO){
+    if(k=='Escape'||k=='Backspace'||k=='GoBack'||k=='ContextMenu'){pO?closeP():closeO();e.preventDefault()}
     else if(KM[k]){nav(KM[k]);e.preventDefault()}
     return;
   }
   if(k=='ArrowLeft'||k=='PageDown'){go(cur+2);e.preventDefault()}
   else if(k=='ArrowRight'||k=='PageUp'){go(cur-2);e.preventDefault()}
-  else if(k=='Enter'||k=='ContextMenu'||k=='m'){openP();e.preventDefault()}
+  else if(k=='ArrowDown'){step(1);e.preventDefault()}
+  else if(k=='ArrowUp'){step(-1);e.preventDefault()}
+  else if(k=='Enter'){sel?openO():openP();e.preventDefault()}
+  else if(k=='ContextMenu'||k=='m'){openP();e.preventDefault()}
+  else if(k=='Escape'||k=='Backspace'){clearSel()}
 });
-function onBack(){if(!$('#panel').hidden){closeP();return true}return false}
+const Q=[['Abdurrahman As-Sudais','Abdurrahmaan_As-Sudais_192kbps'],['Mishary Alafasy','Alafasy_128kbps'],['Abdul Basit (Murattal)','Abdul_Basit_Murattal_192kbps'],['Mahmoud Al-Husary','Husary_128kbps'],['Maher Al-Muaiqly','Maher_AlMuaiqly_128kbps'],['Saud Ash-Shuraim','Saood_ash-Shuraym_128kbps'],['Al-Minshawi (Murattal)','Minshawy_Murattal_128kbps'],['Ali Al-Hudhaify','Hudhaify_128kbps'],['Abu Bakr Ash-Shatri','Abu_Bakr_Ash-Shaatree_128kbps'],['Hani Ar-Rifai','Hani_Rifai_192kbps'],['Muhammad Ayyub','Muhammad_Ayyoub_128kbps'],['Saad Al-Ghamdi','Ghamadi_40kbps'],['Abdullah Basfar','Abdullah_Basfar_192kbps']];
+let qi=0,auto=true,sel=null,playing=false;
+try{qi=+localStorage.getItem('qi')||0;auto=localStorage.getItem('au')!=='0'}catch(e){}
+const save=()=>{try{localStorage.setItem('qi',qi);localStorage.setItem('au',auto?1:0)}catch(e){}};
+const au=new Audio();
+function vlist(){const o=[];for(const id of['#pr','#pl'])document.querySelectorAll(id+' [data-v]').forEach(x=>{if(!o.includes(x.dataset.v))o.push(x.dataset.v)});return o}
+function hl(){document.querySelectorAll('.hl').forEach(x=>x.classList.remove('hl'));if(sel)document.querySelectorAll(`[data-v="${sel}"]`).forEach(x=>x.classList.add('hl'))}
+function updateNP(){const n=$('#np');if(!sel){n.style.display='none';return}n.style.display='block';n.innerHTML=(playing?'▶ ':'⏸ ')+Q[qi][0]+'<br>'+sel.replace(':',' : ')}
+function toast(m){const n=$('#np');n.style.display='block';n.textContent=m;setTimeout(updateNP,3500)}
+function selV(k){sel=k;hl();updateNP();if(playing)playAudio()}
+function playAudio(){
+  const[s,a]=sel.split(':');
+  au.src=`https://everyayah.com/data/${Q[qi][1]}/${s.padStart(3,'0')}${a.padStart(3,'0')}.mp3`;au.dataset.k=sel;
+  playing=true;updateNP();au.play().catch(()=>{playing=false;toast('Gagal memutar audio. Periksa internet.')});
+}
+function togglePlay(){
+  if(playing){au.pause();playing=false;updateNP()}
+  else if(au.dataset.k==sel&&au.currentTime>0&&!au.ended){playing=true;updateNP();au.play()}
+  else playAudio();
+}
+async function step(d){
+  let L=vlist(),i=sel?L.indexOf(sel):-1;
+  if(i<0){if(L[0])selV(L[0]);return true}
+  const j=i+d;
+  if(j>=0&&j<L.length){selV(L[j]);return true}
+  const np=cur+2*d;if(np<1||np>603)return false;
+  const prev=sel;cur=np;await show();
+  L=vlist();let t=d>0?L[0]:L[L.length-1];
+  if(t==prev)t=d>0?L[1]:L[L.length-2];
+  if(!t)return false;selV(t);return true;
+}
+au.onended=async()=>{if(auto&&playing){if(!(await step(1)))playing=false}else playing=false;updateNP()};
+au.onerror=()=>{if(playing){playing=false;toast('Audio tidak dapat dimuat')}};
+function clearSel(){au.pause();playing=false;sel=null;hl();updateNP()}
+function labO(){$('#bp').textContent=playing?'⏸ Jeda':'▶ Putar ayat ini';$('#bq').textContent='Qari: '+Q[qi][0]+'  ›';$('#ba').textContent='Lanjut ayat berikutnya otomatis: '+(auto?'Ya':'Tidak')}
+function openO(){$('#ot').textContent='Ayat '+sel.replace(':',' : ');labO();$('#opt').hidden=false;$('#bp').focus()}
+function closeO(){$('#opt').hidden=true}
+$('#bp').onclick=()=>{togglePlay();closeO()};
+$('#bq').onclick=()=>{qi=(qi+1)%Q.length;save();labO();updateNP();if(playing)playAudio()};
+$('#ba').onclick=()=>{auto=!auto;save();labO()};
+$('#bc').onclick=closeO;
+document.addEventListener('click',e=>{const s=e.target.closest&&e.target.closest('[data-v]');if(s&&$('#panel').hidden&&$('#opt').hidden){selV(s.dataset.v);openO()}});
+function onBack(){if(!$('#panel').hidden){closeP();return true}if(!$('#opt').hidden){closeO();return true}if(sel){clearSel();return true}return false}
 $('#mb').onclick=openP;
 addEventListener('resize',()=>{if(cache[cur]){fit($('#pr'));if($('#pl').children.length)fit($('#pl'))}});
 (async()=>{
